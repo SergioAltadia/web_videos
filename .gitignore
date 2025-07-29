@@ -1,0 +1,32 @@
+# Archivos del sistema Windows
+desktop.ini
+Thumbs.db
+
+# Archivos del sistema macOS
+.DS_Store
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Logs
+*.log
+
+# Archivos de entorno
+.env
+.env.local
+
+# Directorios de dependencias
+node_modules/
+__pycache__/
+*.pyc
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de build
+build/
+dist/
