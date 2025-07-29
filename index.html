@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galería de Videos</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            text-align: center;
+            z-index: 1000;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        .video-gallery {
+            margin-top: 80px;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 1600px;
+            margin-left: auto;
+            margin-right: auto;
+            gap: 20px;
+        }
+
+        .video-column {
+            flex: 0 0 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .video-column:nth-child(1) {
+            margin-top: 0px;
+        }
+
+        .video-column:nth-child(2) {
+            margin-top: 60px;
+        }
+
+        .video-column:nth-child(3) {
+            margin-top: 120px;
+        }
+
+        .video-column:nth-child(4) {
+            margin-top: 40px;
+        }
+
+        .video-column:nth-child(5) {
+            margin-top: 100px;
+        }
+
+        .video-column:nth-child(6) {
+            margin-top: 20px;
+        }
+
+        .video-column:nth-child(7) {
+            margin-top: 80px;
+        }
+
+        .video-container {
+            position: relative;
+            background: #2a2a2a;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            width: 100%;
+        }
+
+        .video-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-item {
+            width: 100%;
+            height: auto;
+            min-height: 200px;
+            max-height: 600px;
+            object-fit: cover;
+            display: block;
+            border-radius: 12px;
+        }
+
+        /* Estilos específicos para videos verticales */
+        .video-container.vertical .video-item {
+            max-height: 500px;
+            min-height: 350px;
+        }
+
+        /* Ajustes para videos muy verticales (9:16, TikTok style) */
+        .video-container.ultra-vertical .video-item {
+            max-height: 600px;
+            min-height: 400px;
+        }
+
+        /* Variaciones aleatorias de altura para efecto carrete */
+        .video-container:nth-child(3n+1) .video-item {
+            height: 280px;
+        }
+
+        .video-container:nth-child(3n+2) .video-item {
+            height: 380px;
+        }
+
+        .video-container:nth-child(3n+3) .video-item {
+            height: 320px;
+        }
+
+        .video-container:nth-child(5n+1) .video-item {
+            height: 250px;
+        }
+
+        .video-container:nth-child(5n+4) .video-item {
+            height: 420px;
+        }
+
+        .video-container:nth-child(7n+2) .video-item {
+            height: 300px;
+        }
+
+        .video-container:nth-child(7n+5) .video-item {
+            height: 360px;
+        }
+
+        .video-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            color: white;
+            padding: 15px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-container:hover .video-info {
+            opacity: 1;
+        }
+
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            font-size: 18px;
+        }
+
+        .error {
+            text-align: center;
+            color: #ff6b6b;
+            padding: 40px;
+            font-size: 16px;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 25px;
+            padding: 10px 15px;
+            color: white;
+            font-size: 12px;
+            z-index: 1000;
+        }
+
+        /* Modal para video en pantalla completa */
+        .video-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-video {
+            width: 100%;
+            height: 100%;
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+            z-index: 2001;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            color: white;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .video-container {
+            cursor: pointer;
+        }
+
+        .video-container:hover {
+            transform: translateY(-5px) scale(1.02);
+        }
+
+        @media (max-width: 768px) {
+            .video-gallery {
+                gap: 15px;
+                padding: 15px;
+            }
+            
+            .video-column {
+                flex: 0 0 220px;
+            }
+
+            .video-column:nth-child(1) {
+                margin-top: 0px;
+            }
+
+            .video-column:nth-child(2) {
+                margin-top: 40px;
+            }
+
+            .video-column:nth-child(3) {
+                margin-top: 80px;
+            }
+
+            .video-column:nth-child(4) {
+                margin-top: 20px;
+            }
+
+            .video-column:nth-child(5) {
+                margin-top: 60px;
+            }
+            
+            .video-container:nth-child(3n+1) .video-item {
+                height: 220px;
+            }
+
+            .video-container:nth-child(3n+2) .video-item {
+                height: 300px;
+            }
+
+            .video-container:nth-child(3n+3) .video-item {
+                height: 260px;
+            }
+
+            .video-container:nth-child(5n+1) .video-item {
+                height: 200px;
+            }
+
+            .video-container:nth-child(5n+4) .video-item {
+                height: 340px;
+            }
+            
+            .video-container.vertical .video-item {
+                max-height: 400px;
+                min-height: 280px;
+            }
+            
+            .video-container.ultra-vertical .video-item {
+                max-height: 450px;
+                min-height: 320px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .video-gallery {
+                gap: 10px;
+            }
+            
+            .video-column {
+                flex: 0 0 180px;
+            }
+
+            .video-column:nth-child(1) {
+                margin-top: 0px;
+            }
+
+            .video-column:nth-child(2) {
+                margin-top: 30px;
+            }
+
+            .video-column:nth-child(3) {
+                margin-top: 60px;
+            }
+            
+            .video-container:nth-child(3n+1) .video-item {
+                height: 180px;
+            }
+
+            .video-container:nth-child(3n+2) .video-item {
+                height: 240px;
+            }
+
+            .video-container:nth-child(3n+3) .video-item {
+                height: 210px;
+            }
+
+            .video-container:nth-child(5n+1) .video-item {
+                height: 160px;
+            }
+
+            .video-container:nth-child(5n+4) .video-item {
+                height: 280px;
+            }
+            
+            .video-container.vertical .video-item {
+                max-height: 320px;
+                min-height: 220px;
+            }
+            
+            .video-container.ultra-vertical .video-item {
+                max-height: 360px;
+                min-height: 260px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎬 Galería de Videos</h1>
+    </div>
+
+    <div class="video-gallery" id="videoGallery">
+        <div class="loading">Cargando videos...</div>
+    </div>
+
+    <div class="controls">
+        <span id="videoCount">0 videos</span>
+    </div>
+
+    <!-- Modal para video en pantalla completa -->
+    <div class="video-modal" id="videoModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">×</button>
+            <video class="modal-video" id="modalVideo" controls autoplay loop></video>
+            <div class="modal-info" id="modalInfo"></div>
+        </div>
+    </div>
+
+    <script>
+        class VideoGallery {
+            constructor() {
+                this.videoPath = 'C:/Users/sergi/Desktop/RANDOM';
+                this.gallery = document.getElementById('videoGallery');
+                this.videoCount = document.getElementById('videoCount');
+                this.supportedFormats = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+                this.videos = [];
+                this.modal = document.getElementById('videoModal');
+                this.modalVideo = document.getElementById('modalVideo');
+                this.modalInfo = document.getElementById('modalInfo');
+                this.modalClose = document.getElementById('modalClose');
+                this.init();
+                this.setupModal();
+            }
+
+            async init() {
+                try {
+                    await this.loadVideos();
+                    this.renderVideos();
+                } catch (error) {
+                    this.showError('Error al cargar los videos: ' + error.message);
+                }
+            }
+
+            async loadVideos() {
+                try {
+                    const response = await fetch('/api/videos');
+                    if (!response.ok) {
+                        throw new Error(`Error del servidor: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    this.videos = data;
+                } catch (error) {
+                    console.error('Error al cargar videos:', error);
+                    // Fallback: mostrar mensaje de error
+                    throw new Error(`No se pudieron cargar los videos: ${error.message}`);
+                }
+            }
+
+            renderVideos() {
+                if (this.videos.length === 0) {
+                    this.showError('No se encontraron videos en la carpeta especificada.');
+                    return;
+                }
+
+                this.gallery.innerHTML = '';
+                
+                // Crear columnas
+                const numColumns = Math.min(Math.floor(window.innerWidth / 300), 6);
+                const columns = [];
+                
+                for (let i = 0; i < numColumns; i++) {
+                    const column = document.createElement('div');
+                    column.className = 'video-column';
+                    columns.push(column);
+                    this.gallery.appendChild(column);
+                }
+                
+                // Distribuir videos en columnas
+                this.videos.forEach((video, index) => {
+                    const videoContainer = this.createVideoElement(video, index);
+                    const columnIndex = index % numColumns;
+                    columns[columnIndex].appendChild(videoContainer);
+                });
+
+                this.updateVideoCount();
+            }
+
+            createVideoElement(video, index) {
+                const container = document.createElement('div');
+                container.className = 'video-container';
+
+                const videoElement = document.createElement('video');
+                videoElement.className = 'video-item';
+                videoElement.src = video.path;
+                videoElement.autoplay = true;
+                videoElement.loop = true;
+                videoElement.muted = true;
+                videoElement.playsInline = true;
+                
+                // Detectar orientación del video cuando se carga
+                videoElement.onloadedmetadata = () => {
+                    const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+                    
+                    if (aspectRatio < 0.75) { // Video vertical
+                        if (aspectRatio < 0.6) { // Video muy vertical (tipo TikTok 9:16)
+                            container.classList.add('ultra-vertical');
+                        } else {
+                            container.classList.add('vertical');
+                        }
+                    }
+                };
+                
+                // Manejo de errores de carga
+                videoElement.onerror = () => {
+                    container.innerHTML = `
+                        <div style="height: 350px; display: flex; align-items: center; justify-content: center; background: #333; color: #999; text-align: center; padding: 20px;">
+                            <div>
+                                <div style="font-size: 24px; margin-bottom: 10px;">⚠️</div>
+                                <div>Error al cargar</div>
+                                <div style="font-size: 12px; margin-top: 5px;">${video.name}</div>
+                            </div>
+                        </div>
+                    `;
+                };
+
+                const videoInfo = document.createElement('div');
+                videoInfo.className = 'video-info';
+                videoInfo.innerHTML = `
+                    <div><strong>${video.name}</strong></div>
+                    <div>Tamaño: ${video.size}</div>
+                `;
+
+                // Agregar evento de click para abrir modal
+                container.addEventListener('click', () => {
+                    this.openModal(video);
+                });
+
+                container.appendChild(videoElement);
+                container.appendChild(videoInfo);
+
+                return container;
+            }
+
+            setupModal() {
+                // Cerrar modal al hacer click en el botón de cerrar
+                this.modalClose.addEventListener('click', () => {
+                    this.closeModal();
+                });
+
+                // Cerrar modal al hacer click fuera del contenido
+                this.modal.addEventListener('click', (e) => {
+                    if (e.target === this.modal) {
+                        this.closeModal();
+                    }
+                });
+
+                // Cerrar modal con la tecla Escape
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.modal.classList.contains('active')) {
+                        this.closeModal();
+                    }
+                });
+            }
+
+            openModal(video) {
+                this.modalVideo.src = video.path;
+                this.modalInfo.innerHTML = `
+                    <div><strong>${video.name}</strong></div>
+                    <div>Tamaño: ${video.size}</div>
+                `;
+                this.modal.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
+            }
+
+            closeModal() {
+                this.modal.classList.remove('active');
+                this.modalVideo.pause();
+                this.modalVideo.src = '';
+                document.body.style.overflow = 'auto'; // Restaurar scroll
+            }
+
+            updateVideoCount() {
+                this.videoCount.textContent = `${this.videos.length} videos`;
+            }
+
+            showError(message) {
+                this.gallery.innerHTML = `<div class="error">${message}</div>`;
+            }
+        }
+
+        // Inicializar la galería cuando se carga la página
+        document.addEventListener('DOMContentLoaded', () => {
+            const gallery = new VideoGallery();
+            
+            // Reorganizar columnas al redimensionar la ventana
+            window.addEventListener('resize', () => {
+                if (gallery.videos.length > 0) {
+                    gallery.renderVideos();
+                }
+            });
+        });
+
+        // Smooth scroll behavior
+        document.documentElement.style.scrollBehavior = 'smooth';
+    </script>
+</body>
+</html>
