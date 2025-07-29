@@ -45,6 +45,15 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
         else:
             super().do_GET()
     
+    def do_POST(self):
+        parsed_path = urlparse(self.path)
+        
+        # API para borrar videos
+        if parsed_path.path == '/api/delete-video':
+            self.handle_delete_video()
+        else:
+            self.send_error_response(404, 'Endpoint no encontrado')
+    
     def handle_video_list(self):
         """Devuelve la lista de videos en formato JSON"""
         try:
@@ -131,6 +140,71 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
                 
         except Exception as e:
             self.send_error_response(500, f"Error al servir video: {str(e)}")
+    
+    def handle_delete_video(self):
+        """Maneja la eliminación de videos"""
+        try:
+            # Leer el cuerpo de la petición
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            
+            # Parsear JSON
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+            except json.JSONDecodeError:
+                self.send_error_response(400, "JSON inválido")
+                return
+            
+            filename = data.get('filename')
+            directory = data.get('directory')
+            
+            if not filename:
+                self.send_error_response(400, "Nombre de archivo requerido")
+                return
+            
+            if not directory:
+                directory = self.video_directory
+            
+            # Construir la ruta completa del archivo
+            file_path = os.path.join(directory, filename)
+            
+            # Verificar que el archivo existe
+            if not os.path.exists(file_path):
+                self.send_error_response(404, f"El archivo {filename} no existe")
+                return
+            
+            # Verificar que es un archivo (no un directorio)
+            if not os.path.isfile(file_path):
+                self.send_error_response(400, f"{filename} no es un archivo válido")
+                return
+            
+            # Verificar que el archivo está dentro del directorio permitido
+            abs_file_path = os.path.abspath(file_path)
+            abs_directory = os.path.abspath(directory)
+            
+            if not abs_file_path.startswith(abs_directory):
+                self.send_error_response(403, "Acceso denegado: archivo fuera del directorio permitido")
+                return
+            
+            # Intentar borrar el archivo
+            try:
+                os.remove(file_path)
+                self.log_message(f"Archivo borrado: {file_path}")
+                
+                # Enviar respuesta de éxito
+                response_data = {
+                    "success": True,
+                    "message": f"Video {filename} borrado exitosamente"
+                }
+                self.send_json_response(response_data)
+                
+            except PermissionError:
+                self.send_error_response(403, f"Sin permisos para borrar {filename}")
+            except OSError as e:
+                self.send_error_response(500, f"Error del sistema al borrar {filename}: {str(e)}")
+                
+        except Exception as e:
+            self.send_error_response(500, f"Error interno del servidor: {str(e)}")
     
     def send_json_response(self, data):
         """Envía una respuesta JSON"""

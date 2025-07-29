@@ -108,6 +108,31 @@
             transform: translateY(-1px);
         }
 
+        .shuffle-button {
+            background: #ffc107;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            color: #212529;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+            font-weight: 600;
+        }
+
+        .shuffle-button:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
+        }
+
+        .shuffle-button:disabled {
+            background: #6c757d;
+            color: #fff;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         #folderInput {
             display: none;
         }
@@ -333,6 +358,33 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
+        .modal-delete {
+            position: absolute;
+            top: 20px;
+            right: 90px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            transition: background-color 0.3s;
+        }
+
+        .modal-delete:hover {
+            background: rgba(220, 53, 69, 1);
+        }
+
+        .modal-delete:disabled {
+            background: rgba(108, 117, 125, 0.7);
+            cursor: not-allowed;
+        }
+
         .modal-info {
             position: absolute;
             bottom: 0;
@@ -473,6 +525,7 @@
             <input type="text" id="folderSearch" class="search-input" placeholder="Ingresa la ruta de la carpeta (ej: C:/Users/usuario/Videos)">
             <button id="searchButton" class="search-button">Buscar</button>
             <button id="browseButton" class="browse-button">Explorar</button>
+            <button id="shuffleButton" class="shuffle-button">🔀 Aleatorio</button>
             <input type="file" id="folderInput" webkitdirectory directory multiple>
         </div>
         <div class="current-folder" id="currentFolder">Carpeta actual: C:/Users/sergi/Desktop/RANDOM</div>
@@ -490,6 +543,7 @@
     <div class="video-modal" id="videoModal">
         <div class="modal-content">
             <button class="modal-close" id="modalClose">×</button>
+            <button class="modal-delete" id="modalDelete">🗑️ Borrar</button>
             <video class="modal-video" id="modalVideo" controls autoplay loop></video>
             <div class="modal-info" id="modalInfo"></div>
         </div>
@@ -504,15 +558,21 @@
                 this.currentFolder = document.getElementById('currentFolder');
                 this.folderSearch = document.getElementById('folderSearch');
                 this.searchButton = document.getElementById('searchButton');
+                this.shuffleButton = document.getElementById('shuffleButton');
                 this.supportedFormats = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
                 this.videos = [];
+                this.originalVideos = [];
+                this.isShuffled = false;
                 this.modal = document.getElementById('videoModal');
                 this.modalVideo = document.getElementById('modalVideo');
                 this.modalInfo = document.getElementById('modalInfo');
+                this.modalDelete = document.getElementById('modalDelete');
+                this.currentVideoFile = null;
                 this.modalClose = document.getElementById('modalClose');
                 this.init();
                 this.setupModal();
                 this.setupSearch();
+                this.setupShuffle();
             }
 
             async init() {
@@ -538,6 +598,9 @@
                     }
                     
                     this.videos = data;
+                    this.originalVideos = [...data]; // Guardar copia del orden original
+                    this.isShuffled = false;
+                    this.updateShuffleButton();
                     this.videoPath = pathToUse;
                     this.updateCurrentFolder();
                 } catch (error) {
@@ -638,6 +701,11 @@
                     this.closeModal();
                 });
 
+                // Agregar evento para el botón de borrar
+                this.modalDelete.addEventListener('click', () => {
+                    this.deleteCurrentVideo();
+                });
+
                 // Cerrar modal al hacer click fuera del contenido
                 this.modal.addEventListener('click', (e) => {
                     if (e.target === this.modal) {
@@ -659,6 +727,7 @@
                     <div><strong>${video.name}</strong></div>
                     <div>Tamaño: ${video.size}</div>
                 `;
+                this.currentVideoFile = video.name;
                 this.modal.classList.add('active');
                 document.body.style.overflow = 'hidden'; // Prevenir scroll del fondo
             }
@@ -780,6 +849,103 @@
             updateCurrentFolder() {
                 this.currentFolder.textContent = `Carpeta actual: ${this.videoPath}`;
                 this.folderSearch.value = this.videoPath;
+            }
+
+            setupShuffle() {
+                this.shuffleButton.addEventListener('click', () => {
+                    this.toggleShuffle();
+                });
+            }
+
+            shuffleArray(array) {
+                const shuffled = [...array];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                return shuffled;
+            }
+
+            toggleShuffle() {
+                if (this.videos.length === 0) {
+                    return;
+                }
+
+                this.shuffleButton.disabled = true;
+                this.shuffleButton.textContent = this.isShuffled ? 'Ordenando...' : 'Mezclando...';
+
+                setTimeout(() => {
+                    if (this.isShuffled) {
+                        // Restaurar orden original
+                        this.videos = [...this.originalVideos];
+                        this.isShuffled = false;
+                    } else {
+                        // Aplicar orden aleatorio
+                        this.videos = this.shuffleArray(this.originalVideos);
+                        this.isShuffled = true;
+                    }
+
+                    this.updateShuffleButton();
+                    this.renderVideos();
+                    this.shuffleButton.disabled = false;
+                }, 100);
+            }
+
+            updateShuffleButton() {
+                if (this.isShuffled) {
+                    this.shuffleButton.textContent = '📋 Orden Original';
+                    this.shuffleButton.style.background = '#dc3545';
+                } else {
+                    this.shuffleButton.textContent = '🔀 Aleatorio';
+                    this.shuffleButton.style.background = '#ffc107';
+                }
+            }
+
+            async deleteCurrentVideo() {
+                if (!this.currentVideoFile) {
+                    alert('No hay video seleccionado para borrar.');
+                    return;
+                }
+
+                const confirmDelete = confirm(`¿Estás seguro de que quieres borrar el video "${this.currentVideoFile}"?\n\nEsta acción no se puede deshacer.`);
+                
+                if (!confirmDelete) {
+                    return;
+                }
+
+                this.modalDelete.disabled = true;
+                this.modalDelete.textContent = 'Borrando...';
+
+                try {
+                    const response = await fetch(`/api/delete-video`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            filename: this.currentVideoFile,
+                            directory: this.videoPath
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        alert('Video borrado exitosamente.');
+                        this.closeModal();
+                        // Recargar la lista de videos
+                        await this.loadVideos();
+                        this.renderVideos();
+                    } else {
+                        throw new Error(result.error || 'Error desconocido al borrar el video');
+                    }
+                } catch (error) {
+                    console.error('Error al borrar video:', error);
+                    alert(`Error al borrar el video: ${error.message}`);
+                } finally {
+                    this.modalDelete.disabled = false;
+                    this.modalDelete.textContent = '🗑️ Borrar';
+                }
             }
         }
 
