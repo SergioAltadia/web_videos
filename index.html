@@ -34,10 +34,92 @@
             color: #fff;
             font-size: 24px;
             font-weight: 300;
+            margin-bottom: 15px;
+        }
+
+        .search-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .search-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #555;
+            border-radius: 25px;
+            padding: 10px 20px;
+            color: #fff;
+            font-size: 14px;
+            width: 400px;
+            max-width: 80vw;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #007bff;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+        }
+
+        .search-input::placeholder {
+            color: #aaa;
+        }
+
+        .search-button {
+            background: #007bff;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .search-button:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .search-button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .browse-button {
+            background: #28a745;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+
+        .browse-button:hover {
+            background: #1e7e34;
+            transform: translateY(-1px);
+        }
+
+        #folderInput {
+            display: none;
+        }
+
+        .current-folder {
+            color: #aaa;
+            font-size: 12px;
+            margin-top: 5px;
         }
 
         .video-gallery {
-            margin-top: 80px;
+            margin-top: 140px;
             padding: 20px;
             display: flex;
             flex-wrap: wrap;
@@ -387,6 +469,13 @@
 <body>
     <div class="header">
         <h1>🎬 Galería de Videos</h1>
+        <div class="search-container">
+            <input type="text" id="folderSearch" class="search-input" placeholder="Ingresa la ruta de la carpeta (ej: C:/Users/usuario/Videos)">
+            <button id="searchButton" class="search-button">Buscar</button>
+            <button id="browseButton" class="browse-button">Explorar</button>
+            <input type="file" id="folderInput" webkitdirectory directory multiple>
+        </div>
+        <div class="current-folder" id="currentFolder">Carpeta actual: C:/Users/sergi/Desktop/RANDOM</div>
     </div>
 
     <div class="video-gallery" id="videoGallery">
@@ -412,6 +501,9 @@
                 this.videoPath = 'C:/Users/sergi/Desktop/RANDOM';
                 this.gallery = document.getElementById('videoGallery');
                 this.videoCount = document.getElementById('videoCount');
+                this.currentFolder = document.getElementById('currentFolder');
+                this.folderSearch = document.getElementById('folderSearch');
+                this.searchButton = document.getElementById('searchButton');
                 this.supportedFormats = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
                 this.videos = [];
                 this.modal = document.getElementById('videoModal');
@@ -420,6 +512,7 @@
                 this.modalClose = document.getElementById('modalClose');
                 this.init();
                 this.setupModal();
+                this.setupSearch();
             }
 
             async init() {
@@ -431,9 +524,10 @@
                 }
             }
 
-            async loadVideos() {
+            async loadVideos(customPath = null) {
                 try {
-                    const response = await fetch('/api/videos');
+                    const pathToUse = customPath || this.videoPath;
+                    const response = await fetch(`/api/videos?path=${encodeURIComponent(pathToUse)}`);
                     if (!response.ok) {
                         throw new Error(`Error del servidor: ${response.status}`);
                     }
@@ -444,6 +538,8 @@
                     }
                     
                     this.videos = data;
+                    this.videoPath = pathToUse;
+                    this.updateCurrentFolder();
                 } catch (error) {
                     console.error('Error al cargar videos:', error);
                     // Fallback: mostrar mensaje de error
@@ -580,6 +676,110 @@
 
             showError(message) {
                 this.gallery.innerHTML = `<div class="error">${message}</div>`;
+            }
+
+            setupSearch() {
+                // Evento para el botón de búsqueda
+                this.searchButton.addEventListener('click', () => {
+                    this.searchFolder();
+                });
+
+                // Evento para buscar al presionar Enter
+                this.folderSearch.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.searchFolder();
+                    }
+                });
+
+                // Evento para el botón de explorar
+                 const browseButton = document.getElementById('browseButton');
+                 const folderInput = document.getElementById('folderInput');
+                 
+                 browseButton.addEventListener('click', async () => {
+                     // Usar la API moderna si está disponible
+                     if ('showDirectoryPicker' in window) {
+                         try {
+                             const directoryHandle = await window.showDirectoryPicker();
+                             // Simular la ruta (no podemos obtener la ruta real por seguridad)
+                             const folderName = directoryHandle.name;
+                             const suggestedPath = prompt(
+                                 `Carpeta seleccionada: "${folderName}"\n\n` +
+                                 'Por favor, ingresa la ruta completa de esta carpeta:',
+                                 `C:\\Users\\usuario\\${folderName}`
+                             );
+                             
+                             if (suggestedPath) {
+                                 this.folderSearch.value = suggestedPath;
+                                 this.searchFolder();
+                             }
+                         } catch (err) {
+                             if (err.name !== 'AbortError') {
+                                 console.error('Error al seleccionar carpeta:', err);
+                             }
+                         }
+                     } else {
+                         // Fallback al input de archivos tradicional
+                         folderInput.click();
+                     }
+                 });
+
+                // Evento para cuando se selecciona una carpeta
+                 folderInput.addEventListener('change', (e) => {
+                     if (e.target.files.length > 0) {
+                         // Usar webkitRelativePath y pedir al usuario que complete la ruta
+                          if (true) {
+                             // Fallback: usar webkitRelativePath y pedir al usuario que complete la ruta
+                             const firstFile = e.target.files[0];
+                             const relativePath = firstFile.webkitRelativePath;
+                             const folderName = relativePath.split('/')[0];
+                             
+                             // Mostrar un prompt para que el usuario ingrese la ruta completa
+                             const fullPath = prompt(
+                                 `Se seleccionó la carpeta: "${folderName}"\n\n` +
+                                 'Por favor, ingresa la ruta completa de esta carpeta:',
+                                 `C:\\Users\\${navigator.userAgent.includes('Windows') ? 'usuario' : 'user'}\\${folderName}`
+                             );
+                             
+                             if (fullPath) {
+                                 this.folderSearch.value = fullPath;
+                                 this.searchFolder();
+                             }
+                         }
+                     }
+                 });
+
+                // Establecer la ruta actual en el input
+                this.folderSearch.value = this.videoPath;
+            }
+
+            async searchFolder() {
+                const newPath = this.folderSearch.value.trim();
+                
+                if (!newPath) {
+                    alert('Por favor, ingresa una ruta de carpeta válida.');
+                    return;
+                }
+
+                // Deshabilitar el botón mientras se busca
+                this.searchButton.disabled = true;
+                this.searchButton.textContent = 'Buscando...';
+                this.gallery.innerHTML = '<div class="loading">Buscando videos en la nueva carpeta...</div>';
+
+                try {
+                    await this.loadVideos(newPath);
+                    this.renderVideos();
+                } catch (error) {
+                    this.showError('Error al buscar en la carpeta: ' + error.message);
+                } finally {
+                    // Rehabilitar el botón
+                    this.searchButton.disabled = false;
+                    this.searchButton.textContent = 'Buscar';
+                }
+            }
+
+            updateCurrentFolder() {
+                this.currentFolder.textContent = `Carpeta actual: ${this.videoPath}`;
+                this.folderSearch.value = this.videoPath;
             }
         }
 

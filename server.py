@@ -30,29 +30,44 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
     def handle_video_list(self):
         """Devuelve la lista de videos en formato JSON"""
         try:
-            if not os.path.exists(self.video_directory):
-                self.send_error_response(404, "Directorio de videos no encontrado")
+            # Obtener la ruta de los parámetros de consulta
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            
+            # Usar la ruta proporcionada o la ruta por defecto
+            target_directory = query_params.get('path', [self.video_directory])[0]
+            
+            if not os.path.exists(target_directory):
+                self.send_error_response(404, f"Directorio no encontrado: {target_directory}")
+                return
+            
+            if not os.path.isdir(target_directory):
+                self.send_error_response(400, f"La ruta especificada no es un directorio: {target_directory}")
                 return
             
             video_extensions = {'.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.flv'}
             videos = []
             
-            for filename in os.listdir(self.video_directory):
-                file_path = os.path.join(self.video_directory, filename)
-                if os.path.isfile(file_path):
-                    _, ext = os.path.splitext(filename.lower())
-                    if ext in video_extensions:
-                        try:
-                            file_size = os.path.getsize(file_path)
-                            size_mb = round(file_size / (1024 * 1024), 2)
-                            videos.append({
-                                'name': filename,
-                                'path': f'/videos/{filename}',
-                                'size': f'{size_mb} MB',
-                                'extension': ext
-                            })
-                        except OSError:
-                            continue
+            try:
+                for filename in os.listdir(target_directory):
+                    file_path = os.path.join(target_directory, filename)
+                    if os.path.isfile(file_path):
+                        _, ext = os.path.splitext(filename.lower())
+                        if ext in video_extensions:
+                            try:
+                                file_size = os.path.getsize(file_path)
+                                size_mb = round(file_size / (1024 * 1024), 2)
+                                videos.append({
+                                    'name': filename,
+                                    'path': f'/videos/{filename}?dir={target_directory}',
+                                    'size': f'{size_mb} MB',
+                                    'extension': ext
+                                })
+                            except OSError:
+                                continue
+            except PermissionError:
+                self.send_error_response(403, f"Sin permisos para acceder al directorio: {target_directory}")
+                return
             
             # Ordenar por nombre
             videos.sort(key=lambda x: x['name'].lower())
@@ -65,9 +80,16 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
     def handle_video_file(self, path):
         """Sirve archivos de video desde la carpeta especificada"""
         try:
+            # Parsear la URL para obtener parámetros
+            parsed_path = urlparse(self.path)
+            query_params = parse_qs(parsed_path.query)
+            
             # Extraer el nombre del archivo de la URL
-            filename = path.split('/videos/')[-1]
-            file_path = os.path.join(self.video_directory, filename)
+            filename = parsed_path.path.split('/videos/')[-1]
+            
+            # Obtener el directorio de los parámetros o usar el por defecto
+            target_directory = query_params.get('dir', [self.video_directory])[0]
+            file_path = os.path.join(target_directory, filename)
             
             if not os.path.exists(file_path) or not os.path.isfile(file_path):
                 self.send_error(404, "Video no encontrado")
