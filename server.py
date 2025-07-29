@@ -3,6 +3,7 @@
 
 import os
 import json
+import socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 import mimetypes
@@ -13,6 +14,23 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
         # Ruta donde están los videos
         self.video_directory = r"C:\Users\sergi\Desktop\RANDOM"
         super().__init__(*args, **kwargs)
+    
+    def handle_one_request(self):
+        """Maneja una sola petición HTTP con manejo de errores mejorado"""
+        try:
+            super().handle_one_request()
+        except ConnectionResetError:
+            # El cliente cerró la conexión abruptamente - esto es normal
+            self.log_message("Cliente desconectado abruptamente")
+        except BrokenPipeError:
+            # El cliente cerró la conexión antes de recibir la respuesta completa
+            self.log_message("Conexión cerrada por el cliente")
+        except socket.error as e:
+            # Otros errores de socket
+            self.log_message(f"Error de socket: {e}")
+        except Exception as e:
+            # Otros errores inesperados
+            self.log_message(f"Error inesperado: {e}")
     
     def do_GET(self):
         parsed_path = urlparse(self.path)
@@ -152,7 +170,17 @@ def run_server(port=8000):
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\n🛑 Servidor detenido")
+        print("\n🛑 Servidor detenido por el usuario")
+    except ConnectionResetError:
+        print("\n⚠️  Conexión reiniciada - el servidor continúa ejecutándose")
+        # Reiniciar el servidor automáticamente
+        run_server(port)
+    except Exception as e:
+        print(f"\n❌ Error del servidor: {e}")
+        print("🔄 Intentando reiniciar el servidor...")
+        # Reiniciar el servidor automáticamente
+        run_server(port)
+    finally:
         httpd.server_close()
 
 if __name__ == '__main__':
