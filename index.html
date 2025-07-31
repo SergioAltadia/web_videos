@@ -665,7 +665,9 @@
                     for (let i = startIndex; i < endIndex; i++) {
                         const video = this.videos[i];
                         const videoContainer = this.createVideoElement(video, i);
-                        const columnIndex = this.displayedVideos.length % this.columns.length;
+                        
+                        // Encontrar la columna con menos videos para mantener balance
+                        const columnIndex = this.findShortestColumn();
                         this.columns[columnIndex].appendChild(videoContainer);
                         this.displayedVideos.push(video);
                     }
@@ -1068,41 +1070,57 @@
                   }
               }
 
-              setupVideoObserver() {
-                  // Crear Intersection Observer para carga diferida de videos
-                  const options = {
-                      root: null,
-                      rootMargin: '50px', // Cargar videos 50px antes de que sean visibles
-                      threshold: 0.1
-                  };
+              findShortestColumn() {
+                   // Encontrar la columna con menos elementos hijos
+                   let shortestIndex = 0;
+                   let minHeight = this.columns[0].children.length;
+                   
+                   for (let i = 1; i < this.columns.length; i++) {
+                       const currentHeight = this.columns[i].children.length;
+                       if (currentHeight < minHeight) {
+                           minHeight = currentHeight;
+                           shortestIndex = i;
+                       }
+                   }
+                   
+                   return shortestIndex;
+               }
 
-                  this.videoObserver = new IntersectionObserver((entries) => {
-                      entries.forEach(entry => {
-                          if (entry.isIntersecting) {
-                              const video = entry.target;
-                              const src = video.dataset.src;
-                              
-                              if (src && !video.src) {
-                                  video.src = src;
-                                  video.load();
-                                  
-                                  // Reproducir automáticamente cuando esté visible
-                                  video.addEventListener('loadeddata', () => {
-                                      if (entry.isIntersecting) {
-                                          video.play().catch(e => {
-                                              // Ignorar errores de autoplay
-                                              console.log('Autoplay prevented:', e.message);
-                                          });
-                                      }
-                                  }, { once: true });
-                              }
-                              
-                              // Dejar de observar este video
-                              this.videoObserver.unobserve(video);
-                          }
-                      });
-                  }, options);
-              }
+               setupVideoObserver() {
+                   // Crear Intersection Observer para carga diferida de videos
+                   const options = {
+                       root: null,
+                       rootMargin: '50px', // Cargar videos 50px antes de que sean visibles
+                       threshold: 0.1
+                   };
+
+                   this.videoObserver = new IntersectionObserver((entries) => {
+                       entries.forEach(entry => {
+                           if (entry.isIntersecting) {
+                               const video = entry.target;
+                               const src = video.dataset.src;
+                               
+                               if (src && !video.src) {
+                                   video.src = src;
+                                   video.load();
+                                   
+                                   // Reproducir automáticamente cuando esté visible
+                                   video.addEventListener('loadeddata', () => {
+                                       if (entry.isIntersecting) {
+                                           video.play().catch(e => {
+                                               // Ignorar errores de autoplay
+                                               console.log('Autoplay prevented:', e.message);
+                                           });
+                                       }
+                                   }, { once: true });
+                               }
+                               
+                               // Dejar de observar este video
+                               this.videoObserver.unobserve(video);
+                           }
+                       });
+                   }, options);
+               }
           }
 
         // Inicializar la galería cuando se carga la página

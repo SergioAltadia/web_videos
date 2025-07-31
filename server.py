@@ -230,7 +230,7 @@ class VideoGalleryHandler(SimpleHTTPRequestHandler):
         """Personalizar el logging"""
         print(f"[{self.address_string()}] {format % args}")
 
-def run_server(port=8000):
+def run_server(port=9000):
     """Ejecuta el servidor HTTP"""
     server_address = ('', port)
     httpd = HTTPServer(server_address, VideoGalleryHandler)
@@ -265,4 +265,4 @@ if __name__ == '__main__':
         print("   Por favor, verifica la ruta o crea el directorio.")
         print("   El servidor se iniciará de todos modos.\n")
     
-    run_server(8000)
+    run_server(9000)
